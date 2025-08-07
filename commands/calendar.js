@@ -83,7 +83,7 @@ module.exports = {
         // Compose event list for text
         let eventList = '';
         if (events.length === 0) {
-            eventList = 'The calendar is empty.';
+            eventList = 'The calendar is empty!';
         } else {
             const recentEvents = events.slice(-10).reverse();
             eventList = recentEvents.map((event, idx) => {
