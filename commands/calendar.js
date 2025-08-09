@@ -2,6 +2,7 @@ const { SlashCommandBuilder, AttachmentBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 const { createCanvas, loadImage } = require('canvas');
+const { DateTime } = require('luxon');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -27,16 +28,16 @@ module.exports = {
             customId: 'persistent_button'
         };
 
-        // Prepare event days for the current month
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = now.getMonth();
+        // Prepare event days for the current month in BRT timezone
+        const now = DateTime.now().setZone('America/Sao_Paulo');
+        const year = now.year;
+        const month = now.month - 1; // JS Date months are 0-based
         // Get all event days in this month
         const eventDays = new Set(
             events
-                .map(e => new Date(e.timestamp))
-                .filter(d => d.getFullYear() === year && d.getMonth() === month)
-                .map(d => d.getDate())
+                .map(e => DateTime.fromISO(e.timestamp, { zone: 'America/Sao_Paulo' }))
+                .filter(d => d.year === year && d.month - 1 === month)
+                .map(d => d.day)
         );
 
         // Draw calendar image
@@ -48,7 +49,7 @@ module.exports = {
         ctx.font = 'bold 20px Arial';
         ctx.fillStyle = '#222';
         ctx.textAlign = 'center';
-        ctx.fillText(`${now.toLocaleString('default', { month: 'long' })} ${year}`, width/2, 30);
+        ctx.fillText(`${now.setLocale('en').toFormat('LLLL yyyy')}`, width/2, 30);
         // Draw day names
         const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
         ctx.font = 'bold 14px Arial';
@@ -80,15 +81,15 @@ module.exports = {
         const buffer = canvas.toBuffer('image/png');
         const attachment = new AttachmentBuilder(buffer, { name: 'calendar.png' });
 
-        // Compose event list for text
+        // Compose event list for text (BRT timezone)
         let eventList = '';
         if (events.length === 0) {
-            eventList = 'The calendar is empty!';
+            eventList = 'The calendar is empty.';
         } else {
             const recentEvents = events.slice(-10).reverse();
             eventList = recentEvents.map((event, idx) => {
-                const date = new Date(event.timestamp);
-                const readable = date.toLocaleString();
+                const date = DateTime.fromISO(event.timestamp, { zone: 'America/Sao_Paulo' });
+                const readable = date.toFormat('yyyy-MM-dd HH:mm:ss (ZZZZ)');
                 return `**${recentEvents.length - idx}.** ${readable} - <@${event.user.id}> (${event.user.tag})`;
             }).join('\n');
         }

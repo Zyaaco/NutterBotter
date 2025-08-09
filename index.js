@@ -2,6 +2,7 @@
 // ID of the channel where the calendar message should always be kept up to date
 const CALENDAR_CHANNEL_ID = '1403043156349554732';
 let CALENDAR_MSG_ID_PATH;
+const { DateTime } = require('luxon');
 
 
 require('dotenv').config();
@@ -113,14 +114,15 @@ client.once(Events.ClientReady, async () => {
             calendarMsg = await channel.messages.fetch(calendarMsgId).catch(() => null);
         }
         // Prepare calendar content and image
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = now.getMonth();
+    // (migrated to luxon below)
+        const now = DateTime.now().setZone('America/Sao_Paulo');
+        const year = now.year;
+        const month = now.month - 1;
         const eventDays = new Set(
             events
-                .map(e => new Date(e.timestamp))
-                .filter(d => d.getFullYear() === year && d.getMonth() === month)
-                .map(d => d.getDate())
+                .map(e => DateTime.fromISO(e.timestamp, { zone: 'America/Sao_Paulo' }))
+                .filter(d => d.year === year && d.month - 1 === month)
+                .map(d => d.day)
         );
         const width = 420, height = 340;
         const canvas = createCanvas(width, height);
@@ -130,7 +132,7 @@ client.once(Events.ClientReady, async () => {
         ctx.font = 'bold 20px Arial';
         ctx.fillStyle = '#222';
         ctx.textAlign = 'center';
-        ctx.fillText(`${now.toLocaleString('default', { month: 'long' })} ${year}`, width/2, 30);
+        ctx.fillText(`${now.setLocale('en').toFormat('LLLL yyyy')}`, width/2, 30);
         const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
         ctx.font = 'bold 14px Arial';
         days.forEach((d, i) => ctx.fillText(d, 40 + i*50, 60));
@@ -163,8 +165,8 @@ client.once(Events.ClientReady, async () => {
         } else {
             const recentEvents = events.slice(-10).reverse();
             const eventList = recentEvents.map((event, idx) => {
-                const date = new Date(event.timestamp);
-                const readable = date.toLocaleString();
+                const date = DateTime.fromISO(event.timestamp, { zone: 'America/Sao_Paulo' });
+                const readable = date.toFormat('yyyy-MM-dd HH:mm:ss (ZZZZ)');
                 return `**${recentEvents.length - idx}.** ${readable} - <@${event.user.id}> (${event.user.tag})`;
             }).join('\n');
             content = `**Event Calendar (latest 10):**\n${eventList}`;
@@ -230,7 +232,7 @@ client.on(Events.InteractionCreate, async interaction => {
             console.error('Error reading calendar.json:', err);
         }
         const newEvent = {
-            timestamp: new Date().toISOString(),
+            timestamp: DateTime.now().setZone('America/Sao_Paulo').toISO(),
             user: {
                 id: interaction.user.id,
                 username: interaction.user.username,
@@ -263,9 +265,9 @@ client.on(Events.InteractionCreate, async interaction => {
             const month = now.getMonth();
             const eventDays = new Set(
                 events
-                    .map(e => new Date(e.timestamp))
-                    .filter(d => d.getFullYear() === year && d.getMonth() === month)
-                    .map(d => d.getDate())
+                    .map(e => DateTime.fromISO(e.timestamp, { zone: 'America/Sao_Paulo' }))
+                    .filter(d => d.year === year && d.month - 1 === month)
+                    .map(d => d.day)
             );
             const width = 420, height = 340;
             const canvas = createCanvas(width, height);
@@ -275,7 +277,7 @@ client.on(Events.InteractionCreate, async interaction => {
             ctx.font = 'bold 20px Arial';
             ctx.fillStyle = '#222';
             ctx.textAlign = 'center';
-            ctx.fillText(`${now.toLocaleString('default', { month: 'long' })} ${year}`, width/2, 30);
+        ctx.fillText(`${now.toLocaleString({ month: 'long', year: 'numeric' })}`, width/2, 30);
             const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
             ctx.font = 'bold 14px Arial';
             days.forEach((d, i) => ctx.fillText(d, 40 + i*50, 60));
